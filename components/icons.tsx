@@ -1,3 +1,4 @@
+import Image from 'next/image'
 export const BotIcon = () => {
   return (
     <svg
@@ -609,6 +610,18 @@ export const MessageIcon = ({ size = 16 }: { size?: number }) => {
     </svg>
   );
 };
+
+
+export const UnibaIcon = ({ size = 16 }: { size?: number }) => {
+  return (
+      <Image
+        src="/images/logo_uniba.png"
+        height={size}
+        width={size}
+        alt='Logo uniba'
+      />
+  )
+}
 
 export const CrossIcon = ({ size = 16 }: { size?: number }) => (
   <svg

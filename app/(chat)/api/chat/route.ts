@@ -28,6 +28,11 @@ import { myProvider } from '@/lib/ai/providers';
 
 export const maxDuration = 60;
 
+const { VECTORIZE_API_TOKEN, VECTORIZE_API } = process.env;
+if (!VECTORIZE_API_TOKEN || !VECTORIZE_API) {
+  throw new Error('VECTORIZE_API_TOKEN or VECTORIZE_API is not defined');
+}
+
 export async function POST(request: Request) {
   try {
     const {
@@ -70,6 +75,55 @@ export async function POST(request: Request) {
       messages: [{ ...userMessage, createdAt: new Date(), chatId: id }],
     });
 
+    let fullPrompt = "";
+    let currentMessage = messages[messages.length - 1].content;
+    const base_prompt = `
+    Tu sei un assistente esperto del Salento nel periodo alto-medioevale. 
+    Rispondi alla seguente domanda utilizzando solo le informazioni fornite nel contesto.
+    Se le informazioni nel contesto non sono sufficienti per rispondere alla domanda, dillo chiaramente.
+    `
+    try {
+      const response = await fetch(VECTORIZE_API as string, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': VECTORIZE_API_TOKEN as string,
+        },
+        body: JSON.stringify({
+          question: currentMessage,
+          numResults: 5,
+          rerank: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Errore nella richiesta a Vectorize: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      let chunksText = "";
+      data.documents.forEach((chunk: { chunk_id?: string, similarity?: number, text?: string }, index: number) => {
+        const sourceId = chunk.chunk_id ?? (index + 1).toString();
+        const similarity = chunk.similarity ?? 0;
+        const text = chunk.text?.trim() ?? "";
+        chunksText += `[source=${sourceId}&relevance=${similarity.toFixed(2)}]\n${text}\n\n`;
+      });
+
+      fullPrompt = `
+      ${base_prompt}
+      ${chunksText}
+      
+      Domanda: ${currentMessage}
+    
+      Risposta:
+      `;
+    } catch (error) {
+      console.error("Errore nella richiesta a Vectorize:", error);
+    }
+
+
+    messages[messages.length - 1].content = fullPrompt;
     return createDataStreamResponse({
       execute: (dataStream) => {
         const result = streamText({
@@ -81,11 +135,11 @@ export async function POST(request: Request) {
             selectedChatModel === 'chat-model-reasoning'
               ? []
               : [
-                  'getWeather',
-                  'createDocument',
-                  'updateDocument',
-                  'requestSuggestions',
-                ],
+                'getWeather',
+                'createDocument',
+                'updateDocument',
+                'requestSuggestions',
+              ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
           tools: {

@@ -5,6 +5,7 @@ import { Overview } from './overview';
 import { memo } from 'react';
 import { Vote } from '@/lib/db/schema';
 import equal from 'fast-deep-equal';
+import AudioMessage from './audio-message';
 
 interface MessagesProps {
   chatId: string;
@@ -41,6 +42,7 @@ function PureMessages({
       {messages.length === 0 && <Overview />}
 
       {messages.map((message, index) => (
+        <>
         <PreviewMessage
           key={message.id}
           index={index}
@@ -56,6 +58,14 @@ function PureMessages({
           reload={reload}
           isReadonly={isReadonly}
         />
+        {message.role === 'assistant' && (
+          <div className="flex justify-center">
+            <AudioMessage
+              message={message.content}
+            />
+          </div>
+        )}
+        </>
       ))}
 
       {isLoading &&
