@@ -35,7 +35,6 @@ export async function POST(request: Request) {
       chunks.push(chunk);
     }
     const audioBuffer = Buffer.concat(chunks);
-    
     return new Response(audioBuffer, {
       headers: {
         'Content-Type': 'audio/mpeg',
